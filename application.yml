@@ -1,0 +1,7 @@
+
+config:
+  file:
+    loc1: rueApp/application.yml
+    loc2: rueApp/application.yml
+    loc3: rueApp/application.yml
+    loc4: rueApp/application.yml

@@ -1,0 +1,8 @@
+config:
+  file:
+    loc1: resources/config/application.yml
+    loc2: resources/config/application.yml
+    loc3: resources/config/application.yml
+    loc4: resources/config/application.yml
+    loc5: resources/config/application.yml
+    loc6: resources/config/application.yml
