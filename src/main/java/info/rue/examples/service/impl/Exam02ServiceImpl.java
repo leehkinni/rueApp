@@ -88,6 +88,7 @@ public class Exam02ServiceImpl implements Exam02Service {
                         log.error(e.getMessage(), e);
                     }
                     makeTemplateJava(file, javaTemplateFilename, fileLoc + "//" + file.getName());
+
                 }
             }
         }
