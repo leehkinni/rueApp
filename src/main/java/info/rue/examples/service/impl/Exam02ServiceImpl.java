@@ -19,7 +19,10 @@ public class Exam02ServiceImpl implements Exam02Service {
 
     private static final String BASE_DIR_PATH = "D:\\project\\템플릿\\";
     private static final String BASE_JAVA_TEMPLATE_PATH = "D:\\project\\템플릿\\java\\src\\";
-    private static final String BASE_JAVA_OUTPUT_PATH = "D:\\project\\템플릿\\java\\oupput\\";
+    private static final String BASE_JAVA_OUTPUT_PATH = "D:\\project\\템플릿\\java\\output\\";
+
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
+    private final SimpleDateFormat todaySdf10 = new SimpleDateFormat("yyyy-MM-dd");
 
     @Override
     public void makeTemplate(String templateId, String businessId) {
@@ -29,7 +32,7 @@ public class Exam02ServiceImpl implements Exam02Service {
                 makeTemplateDgConv(businessId);
                 break;
             case "java":
-                makeTemplateJava(businessId);
+                makeTemplateJava(businessId);       // businessId = javaMappingFilename
                 break;
             default:
                 log.info("templateId {} 존재하지 않음. 확인 필요", templateId);
@@ -54,41 +57,39 @@ public class Exam02ServiceImpl implements Exam02Service {
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS");
 
-        String targetDirPath = BASE_DIR_PATH + businessId + "\\" + sdf.format(cal.getTime()) + "\\";
+        String targetDirPath = sdf.format(cal.getTime());
         String javaTemplateFilename = BASE_DIR_PATH + businessId + ".txt";
 
-        File file = new File(BASE_JAVA_TEMPLATE_PATH);
-        makeTemplateJava(file, javaTemplateFilename, "");
+        File javaTemplatePath = new File(BASE_JAVA_TEMPLATE_PATH);
+        makeTemplatePathJava(javaTemplatePath, javaTemplateFilename, targetDirPath);
     }
 
-    private void makeTemplateJava(File srcFile, String javaTemplateFilename, String fileLoc) {
+    private void makeTemplatePathJava(File javaTemplatePath, String javaTemplateFilename, String currFileLoc) {
 
-        log.info("srcFile.getAbsoluteFile() = {}, javaTemplateFilename = {}", srcFile.getAbsoluteFile(), javaTemplateFilename);
+        log.info("javaTemplatePath.getAbsoluteFile() = {}, javaTemplateFilename = {}", javaTemplatePath.getAbsoluteFile(), javaTemplateFilename);
 
-        if(srcFile.isFile()) {
-            throw new RuntimeException("지정한 정보는 디렉토리가 아닙니다. [" + srcFile.getAbsoluteFile() + "]");
+        if(javaTemplatePath.isFile()) {
+            throw new RuntimeException("지정한 정보는 디렉토리가 아닙니다. [" + javaTemplatePath.getAbsoluteFile() + "]");
         }
 
-        File[] arrFilename = srcFile.listFiles();
-        log.info("arrFilename = {}", (Object) arrFilename);
+        File[] files = javaTemplatePath.listFiles();
+        log.info("arrFilename = {}", (Object) files);
 
-        if(arrFilename != null) {
-            for(File file : arrFilename) {
-                log.info(file.getName());
+        if(files != null) {
+            for(File file : files) {
                 if(file.isFile()) {
                     log.info("file ======>>> {}", file.getName());
                     List<String> paramList = readTemplateFile(javaTemplateFilename);
                     List<String> templateList = readTemplateFile(file.getAbsolutePath());
-                    makeTemplateJavaFile(BASE_JAVA_OUTPUT_PATH + "\\" + fileLoc, file.getName(), paramList, templateList);
+                    makeTemplateJavaFile(BASE_JAVA_OUTPUT_PATH + "\\" + currFileLoc, file.getName(), paramList, templateList);
                 } else {
                     log.info("directory ======>>> {}", file.getName());
                     try {
-                        Files.createDirectories(Paths.get(BASE_JAVA_OUTPUT_PATH + fileLoc + "\\" + file.getName()));
+                        Files.createDirectories(Paths.get(BASE_JAVA_OUTPUT_PATH + currFileLoc + "\\" + file.getName()));
                     } catch (IOException e) {
                         log.error(e.getMessage(), e);
                     }
-                    makeTemplateJava(file, javaTemplateFilename, fileLoc + "//" + file.getName());
-
+                    makeTemplatePathJava(file, javaTemplateFilename, currFileLoc + "\\" + file.getName());
                 }
             }
         }
@@ -98,8 +99,6 @@ public class Exam02ServiceImpl implements Exam02Service {
     private void makeTemplateJavaFile(String targetDirPath, String targetFilename, List<String> paramList, List<String> templateList) {
 
         Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
-        SimpleDateFormat todaySdf10 = new SimpleDateFormat("yyyy-MM-dd");
         Map<String, String> replaceParamMap = new HashMap<>();
 
         Pattern pattern = Pattern.compile("#\\{(.+)}");
@@ -116,18 +115,10 @@ public class Exam02ServiceImpl implements Exam02Service {
                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(targetFilePath)));
 
                 for (String s : templateList) {
-                    matcher = pattern.matcher(s);
-                    while (matcher.find()) {
-                        String token = matcher.group();
-                        String tokenKey = matcher.group(1);
-                        log.info("token, tokenKey =========>>>> {}, {}", token, replaceParamMap.get(tokenKey));
-                        s = s.replaceAll(Pattern.quote(token), replaceParamMap.get(tokenKey));
-                        log.info(s);
-                    }
-
-                    bw.write(s);
+                    bw.write(getReplaceString(s, pattern, replaceParamMap));
                     bw.newLine();
                 }
+
                 bw.flush();
                 bw.close();
             }
@@ -156,8 +147,6 @@ public class Exam02ServiceImpl implements Exam02Service {
     private void makeTemplateFile(String targetDirPath, List<String> businessTableList, List<String> templateList) {
 
         Calendar cal = Calendar.getInstance();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
-        SimpleDateFormat todaySdf10 = new SimpleDateFormat("yyyy-MM-dd");
         Map<String, String> replaceParamMap = new HashMap<>();
 
         Pattern pattern = Pattern.compile("#\\{(.+)}");
@@ -179,16 +168,7 @@ public class Exam02ServiceImpl implements Exam02Service {
                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(targetFilePath), "MS949"));
 
                 for (String s : templateList) {
-                    matcher = pattern.matcher(s);
-                    while (matcher.find()) {
-                        String token = matcher.group();
-                        String tokenKey = matcher.group(1);
-                        log.info("token, tokenKey =========>>>> {}, {}", token, replaceParamMap.get(tokenKey));
-                        s = s.replaceAll(Pattern.quote(token), replaceParamMap.get(tokenKey));
-                        log.info(s);
-                    }
-
-                    bw.write(s);
+                    bw.write(getReplaceString(s, pattern, replaceParamMap));
                     bw.newLine();
                 }
                 bw.flush();
@@ -219,4 +199,16 @@ public class Exam02ServiceImpl implements Exam02Service {
         }
     }
 
+    private String getReplaceString(String src, Pattern pattern, Map<String, String> replaceParamMap) {
+        Matcher matcher = pattern.matcher(src);
+        while (matcher.find()) {
+            String token = matcher.group();
+            String tokenKey = matcher.group(1);
+            log.info("token, tokenKey =========>>>> {}, {}", token, replaceParamMap.get(tokenKey));
+            src = src.replaceAll(Pattern.quote(token), replaceParamMap.get(tokenKey));
+            log.info(src);
+        }
+
+        return src;
+    }
 }
