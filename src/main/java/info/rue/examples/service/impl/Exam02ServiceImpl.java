@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
 @Slf4j
 public class Exam02ServiceImpl implements Exam02Service {
 
+    private static final String BASE_DIR_PATH = "D:\\project\\템플릿\\";
+    private static final String BASE_JAVA_TEMPLATE_PATH = "D:\\project\\템플릿\\java\\src\\";
+    private static final String BASE_JAVA_OUTPUT_PATH = "D:\\project\\템플릿\\java\\oupput\\";
 
     @Override
     public void makeTemplate(String templateId, String businessId) {
@@ -26,7 +29,7 @@ public class Exam02ServiceImpl implements Exam02Service {
                 makeTemplateDgConv(businessId);
                 break;
             case "java":
-                makeTemplateJava();
+                makeTemplateJava(businessId);
                 break;
             default:
                 log.info("templateId {} 존재하지 않음. 확인 필요", templateId);
@@ -39,17 +42,97 @@ public class Exam02ServiceImpl implements Exam02Service {
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
 
-        String dirPath = "D:\\project\\템플릿\\";
-        String targetDirPath = dirPath + businessId + "\\" + sdf.format(cal.getTime()) + "\\";
-        String templateFilename = dirPath + "동국대 CONV 샘플.SQL";
-        String businessFilename = dirPath + businessId + "_FILE_LIST.txt";
+        String targetDirPath = BASE_DIR_PATH + businessId + "\\" + sdf.format(cal.getTime()) + "\\";
+        String templateFilename = BASE_DIR_PATH + "동국대 CONV 샘플.SQL";
+        String businessFilename = BASE_DIR_PATH + businessId + "_FILE_LIST.txt";
         List<String> businessTableList = readTemplateFile(businessFilename);
         List<String> templateList = readTemplateFile(templateFilename);
         makeTemplateFile(targetDirPath, businessTableList, templateList);
     }
 
-    private void makeTemplateJava() {
+    private void makeTemplateJava(String businessId) {
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS");
 
+        String targetDirPath = BASE_DIR_PATH + businessId + "\\" + sdf.format(cal.getTime()) + "\\";
+        String javaTemplateFilename = BASE_DIR_PATH + businessId + ".txt";
+
+        File file = new File(BASE_JAVA_TEMPLATE_PATH);
+        makeTemplateJava(file, javaTemplateFilename, "");
+    }
+
+    private void makeTemplateJava(File srcFile, String javaTemplateFilename, String fileLoc) {
+
+        log.info("srcFile.getAbsoluteFile() = {}, javaTemplateFilename = {}", srcFile.getAbsoluteFile(), javaTemplateFilename);
+
+        if(srcFile.isFile()) {
+            throw new RuntimeException("지정한 정보는 디렉토리가 아닙니다. [" + srcFile.getAbsoluteFile() + "]");
+        }
+
+        File[] arrFilename = srcFile.listFiles();
+        log.info("arrFilename = {}", (Object) arrFilename);
+
+        if(arrFilename != null) {
+            for(File file : arrFilename) {
+                log.info(file.getName());
+                if(file.isFile()) {
+                    log.info("file ======>>> {}", file.getName());
+                    List<String> paramList = readTemplateFile(javaTemplateFilename);
+                    List<String> templateList = readTemplateFile(file.getAbsolutePath());
+                    makeTemplateJavaFile(BASE_JAVA_OUTPUT_PATH + "\\" + fileLoc, file.getName(), paramList, templateList);
+                } else {
+                    log.info("directory ======>>> {}", file.getName());
+                    try {
+                        Files.createDirectories(Paths.get(BASE_JAVA_OUTPUT_PATH + fileLoc + "\\" + file.getName()));
+                    } catch (IOException e) {
+                        log.error(e.getMessage(), e);
+                    }
+                    makeTemplateJava(file, javaTemplateFilename, fileLoc + "//" + file.getName());
+                }
+            }
+        }
+
+    }
+
+    private void makeTemplateJavaFile(String targetDirPath, String targetFilename, List<String> paramList, List<String> templateList) {
+
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
+        SimpleDateFormat todaySdf10 = new SimpleDateFormat("yyyy-MM-dd");
+        Map<String, String> replaceParamMap = new HashMap<>();
+
+        Pattern pattern = Pattern.compile("#\\{(.+)}");
+        Matcher matcher;
+
+        try {
+            for(String param : paramList) {
+                String[] arrBusinessTableInfo = param.split(":");
+                String targetFilePath = targetDirPath + "\\" + targetFilename;
+
+                replaceParamMap.clear();
+                replaceParamMap.put(arrBusinessTableInfo[0].trim(), arrBusinessTableInfo[1].trim());
+
+                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(targetFilePath)));
+
+                for (String s : templateList) {
+                    matcher = pattern.matcher(s);
+                    while (matcher.find()) {
+                        String token = matcher.group();
+                        String tokenKey = matcher.group(1);
+                        log.info("token, tokenKey =========>>>> {}, {}", token, replaceParamMap.get(tokenKey));
+                        s = s.replaceAll(Pattern.quote(token), replaceParamMap.get(tokenKey));
+                        log.info(s);
+                    }
+
+                    bw.write(s);
+                    bw.newLine();
+                }
+                bw.flush();
+                bw.close();
+            }
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
+        }
     }
 
     private List<String> readTemplateFile(String filePath) {
@@ -64,6 +147,7 @@ public class Exam02ServiceImpl implements Exam02Service {
             reader.close();
         } catch (IOException e) {
             log.error(e.getMessage(), e);
+            throw new RuntimeException(e.getMessage());
         }
         return list;
     }
@@ -121,14 +205,14 @@ public class Exam02ServiceImpl implements Exam02Service {
                 throw new RuntimeException("파일이 존재합니다. [" + targetFilePath +"]");
             }
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
 
             for(String s: list) {
-                writer.write(s);
-                writer.newLine();
+                bw.write(s);
+                bw.newLine();
             }
-            writer.flush(); // 버퍼의 남은 데이터를 모두 쓰기
-            writer.close(); // 스트림 종료
+            bw.flush();
+            bw.close();
         } catch (IOException e) {
             log.error(e.getMessage(), e);
         }
