@@ -5,6 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -33,8 +36,11 @@ public class Exam02ServiceImpl implements Exam02Service {
     }
 
     private void makeTemplateDgConv(String businessId) {
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
+
         String dirPath = "D:\\project\\템플릿\\";
-        String targetDirPath = dirPath + businessId + "\\";
+        String targetDirPath = dirPath + businessId + "\\" + sdf.format(cal.getTime()) + "\\";
         String templateFilename = dirPath + "동국대 CONV 샘플.SQL";
         String businessFilename = dirPath + businessId + "_FILE_LIST.txt";
         List<String> businessTableList = readTemplateFile(businessFilename);
@@ -72,21 +78,24 @@ public class Exam02ServiceImpl implements Exam02Service {
         Pattern pattern = Pattern.compile("#\\{(.+)}");
         Matcher matcher;
 
-        for(String businessTable : businessTableList) {
-            String[] arrBusinessTableInfo = businessTable.split(",");
-            String targetFilePath = targetDirPath + arrBusinessTableInfo[3] + "_" + sdf.format(cal.getTime()) + ".sql";
+        try {
+            Files.createDirectories(Paths.get(targetDirPath));
 
-            replaceParamMap.clear();
-            replaceParamMap.put("TOBE_TABLE", arrBusinessTableInfo[1]);
-            replaceParamMap.put("PROCEDURE_NAME", arrBusinessTableInfo[3]);
-            replaceParamMap.put("TODAY", todaySdf10.format(cal.getTime()));
+            for(String businessTable : businessTableList) {
+                String[] arrBusinessTableInfo = businessTable.split(",");
+                String targetFilePath = targetDirPath + arrBusinessTableInfo[3] + "_" + sdf.format(cal.getTime()) + ".sql";
 
-            try {
-                BufferedWriter writer = new BufferedWriter(new FileWriter(targetFilePath));
+                replaceParamMap.clear();
+                replaceParamMap.put("TOBE_TABLE", arrBusinessTableInfo[1]);
+                replaceParamMap.put("PROCEDURE_NAME", arrBusinessTableInfo[3]);
+                replaceParamMap.put("TODAY", todaySdf10.format(cal.getTime()));
+                replaceParamMap.put("FILENAME", arrBusinessTableInfo[3] + "_" + sdf.format(cal.getTime()) + ".sql");
 
-                for(String s: templateList) {
+                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(targetFilePath), "MS949"));
+
+                for (String s : templateList) {
                     matcher = pattern.matcher(s);
-                    while(matcher.find()) {
+                    while (matcher.find()) {
                         String token = matcher.group();
                         String tokenKey = matcher.group(1);
                         log.info("token, tokenKey =========>>>> {}, {}", token, replaceParamMap.get(tokenKey));
@@ -94,14 +103,14 @@ public class Exam02ServiceImpl implements Exam02Service {
                         log.info(s);
                     }
 
-                    writer.write(s);
-                    writer.newLine();
+                    bw.write(s);
+                    bw.newLine();
                 }
-                writer.flush();
-                writer.close();
-            } catch (IOException e) {
-                log.error(e.getMessage(), e);
+                bw.flush();
+                bw.close();
             }
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
         }
     }
 
